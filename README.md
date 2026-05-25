@@ -8,6 +8,36 @@ Cały pakiet to **jeden folder**: `~/.claude/skills/team-init/`. W środku zaró
 skill dla Claude Code (`SKILL.md`), jak i bash skrypt (`setup-team.sh`) który jest
 wywoływany przez skill lub bezpośrednio z linii poleceń.
 
+## Instalacja (jedna komenda)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Bartosz-Chlebowski/claude-team-init/main/install.sh | bash
+```
+
+Co robi: klonuje repo do `~/.claude/skills/team-init/`, ustawia uprawnienia
+wykonywalne na skryptach. Jeśli skill już jest zainstalowany — robi `git pull`
+(aktualizacja).
+
+**Wymagania:** `git`, `bash` ≥ 4, `perl` (standardowo na macOS/Linux).
+
+Po instalacji **zrestartuj Claude Code** (zamknij i odpal `claude` ponownie),
+żeby skill został wczytany. Następnie wpisz `/team-init` w dowolnym projekcie.
+
+### Alternatywnie — git clone (bez curl|bash)
+
+```bash
+git clone https://github.com/Bartosz-Chlebowski/claude-team-init.git ~/.claude/skills/team-init
+chmod +x ~/.claude/skills/team-init/setup-team.sh
+```
+
+### Aktualizacja
+
+```bash
+cd ~/.claude/skills/team-init && git pull
+```
+
+lub uruchom `install.sh` ponownie.
+
 ## Co generuje
 
 ```
@@ -124,59 +154,19 @@ Skrypt dostosowuje wygenerowaną zawartość do typu projektu:
 | `operations` | Generic | Bez stacku | FEATURES, DECISIONS |
 | `other`      | Generic | Bez stacku | DECISIONS |
 
-## Instalacja
-
-Skopiuj **cały folder** `team-init/` do `~/.claude/skills/team-init/`:
-
-```bash
-mkdir -p ~/.claude/skills
-cp -r /ścieżka/do/team-init ~/.claude/skills/team-init
-chmod +x ~/.claude/skills/team-init/setup-team.sh
-```
-
-Po tym skill `/team-init` jest dostępny w Claude Code we wszystkich projektach,
-a bash można odpalić bezpośrednio z `~/.claude/skills/team-init/setup-team.sh`.
-
 ## Udostępnianie innym
 
-### Przez zip
+Wystarczy wskazać link do repo:
 
-```bash
-cd ~/.claude/skills
-zip -r team-init.zip team-init/
-# wyślij komuś team-init.zip
+```
+https://github.com/Bartosz-Chlebowski/claude-team-init
 ```
 
-Odbiorca:
-```bash
-mkdir -p ~/.claude/skills
-unzip team-init.zip -d ~/.claude/skills/
-chmod +x ~/.claude/skills/team-init/setup-team.sh
-```
-
-### Przez git
+albo komendę instalacji:
 
 ```bash
-cd ~/.claude/skills/team-init
-git init
-git add .
-git commit -m "team-init — universal virtual firm initializer"
-git remote add origin https://github.com/<user>/team-init.git
-git push -u origin main
+curl -fsSL https://raw.githubusercontent.com/Bartosz-Chlebowski/claude-team-init/main/install.sh | bash
 ```
-
-Odbiorca:
-```bash
-git clone https://github.com/<user>/team-init.git ~/.claude/skills/team-init
-chmod +x ~/.claude/skills/team-init/setup-team.sh
-```
-
-### Wymagania
-
-- **bash** ≥ 4 (standard na macOS/Linux)
-- **perl** (standard na macOS/Linux, w Windows: WSL lub Git Bash)
-- **Claude Code** (tylko dla wariantu A — wariant B działa bez niego)
-- nic poza tym — brak zależności npm/pip/cargo
 
 ## Modyfikacja szablonów
 
