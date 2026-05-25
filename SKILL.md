@@ -60,8 +60,33 @@ git log --oneline -20    # ostatnie commity → o czym jest projekt
 git remote -v            # gdzie host (sugestia: github → nazwa repo/org)
 ```
 
+**Wyciągnij imię właściciela z pamięci Claude'a:**
+
+Claude trzyma user memory w `~/.claude/projects/<encoded-pwd>/memory/`. Sprawdź dwie
+lokalizacje (per-project i dla katalogu home — tam zwykle jest najpełniejszy profil):
+
+```bash
+# Konwencja: PWD z "/" zamienionym na "-"
+HOME_MEM="$HOME/.claude/projects/-Users-$(whoami)/memory"
+PROJ_MEM="$HOME/.claude/projects/$(pwd | sed 's|/|-|g')/memory"
+
+# Sprawdź user_profile.md (najczęściej zawiera imię w 'description' lub treści)
+cat "$HOME_MEM/user_profile.md" 2>/dev/null
+cat "$PROJ_MEM/user_profile.md" 2>/dev/null
+
+# Index pamięci może wskazać dodatkowe pliki
+cat "$HOME_MEM/MEMORY.md" 2>/dev/null
+```
+
+Jeśli znajdziesz imię (z frontmattera `name:`, z `description`, lub z treści typu
+"User profile — basic info about X") — użyj jako **default dla `--owner`**.
+W fazie 2 nie pytaj o imię — potwierdź: "Wykryłem cię jako: X. OK?".
+
+Jeśli **nie znajdziesz** — wtedy w fazie 2 zapytaj normalnie.
+
 **Zbuduj proponowaną konfigurację** na podstawie discovery:
 
+- `--owner`: z user memory (patrz wyżej) → fallback: zapytaj
 - `--name`: z `package.json#name`, `pyproject#name`, `Cargo.toml#name`, nazwy katalogu, `<h1>` z README, lub `CLAUDE.md`
 - `--project-type`:
   - jest `package.json` / `Cargo.toml` / `pyproject.toml` / `go.mod` / framework config → `software`
@@ -98,6 +123,7 @@ Forma: krótka, zwięzła, w punktach.
 Zapoznałem się z projektem. Oto co znalazłem:
 
 📂 Katalog: <pwd>
+👤 Właściciel: <wyciągnięty z user memory lub "do potwierdzenia">
 📝 Plików konfiguracyjnych: <lista>
 🏗️  Wykryty stack: <co rozpoznałem>
 📚 Istniejąca dokumentacja: <pliki MD, jeśli są>
@@ -105,6 +131,7 @@ Zapoznałem się z projektem. Oto co znalazłem:
 ⚠️  team/ status: <"nie ma" | "już istnieje — N agentów aktywnych" | "częściowo zainicjowane">
 
 Proponowane defaulty:
+- Właściciel: <wartość z memory lub "?">
 - Nazwa: <wartość>
 - Typ projektu: <wartość>
 - Stack: <wartość>
@@ -112,7 +139,7 @@ Proponowane defaulty:
 - RODO: <yes/no — z uzasadnieniem>
 
 Brakuje mi info o:
-- <lista rzeczy do dopytania>
+- <lista rzeczy do dopytania — owner tylko jeśli nie znaleziono w memory>
 ```
 
 **Następnie zadaj pytania** przez AskUserQuestion — **tylko o to, czego nie wiesz**.
@@ -122,7 +149,8 @@ i zapytaj o **confirmację / korekty**.
 **Zasady pytania:**
 - Max 3-4 pytania na raz (AskUserQuestion przyjmuje do 4)
 - Pytaj o **najważniejsze brakujące informacje** najpierw:
-  1. Imię właściciela / decydenta (prawie zawsze trzeba zapytać)
+  1. Imię właściciela / decydenta — **tylko jeśli nie wyciągnąłeś z user memory**.
+     Jeśli wyciągnąłeś — potwierdź: "Wykryłem cię jako: X. OK?" (1 pytanie tak/nie)
   2. Confirmacja `project-type` jeśli wieloznaczne
   3. Krótki opis (1 zdanie) — często wykryjesz z README, ale potwierdź
   4. Akceptacja defaultów stacku albo korekty

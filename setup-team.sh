@@ -103,7 +103,7 @@ PRZYKŁADY:
     --description "Blog ekspercki o psychologii"
 
   # Projekt research
-  bash setup-team.sh --name "Badanie Q3" --owner "Bart" --project-type research \
+  bash setup-team.sh --name "Badanie Q3" --owner "Marta" --project-type research \
     --description "Badanie rynku B2B w branży X"
 
 EOF
