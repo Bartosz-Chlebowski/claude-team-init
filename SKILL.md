@@ -163,11 +163,27 @@ Jeśli **nie znajdziesz** — wtedy w fazie 2 zapytaj normalnie.
 **Jeśli projekt jest pusty** (tylko `.git/` lub kompletnie pusty katalog) — startujesz od zera, masz tylko nazwę katalogu jako sugestię.
 
 **Specjalny przypadek — `team/` już istnieje:**
+
 - Przeczytaj `team/ROSTER.md` i `team/TASKS.md` żeby zrozumieć stan
+- **Sprawdź `team/.team-init-config`** — jeśli istnieje, zawiera zapisaną konfigurację
+  z initial setupu (PROJECT_TYPE, stack, multitenant, RODO, TEMPLATES_VERSION_INSTALLED).
+  Porównaj `TEMPLATES_VERSION_INSTALLED` z aktualną wersją szablonów w skillu
+  (zmiena `TEMPLATES_VERSION` na początku `setup-team.sh`).
 - W fazie 2 zapytaj **wprost**: "team/ jest już zainicjowane. Co chcesz zrobić?" — opcje:
-  - `Nadpisać całość` (czysty restart — destruktywne)
+  - **`Upgrade templates` (rekomendowany jeśli wersja w configu < aktualna)** — re-renderuje
+    statyczne playbooki (PROJECT_MANAGER, HIRING, WORKFLOW, STANDARDS, REPORTING, README,
+    AGENT_TEMPLATE) z aktualnych szablonów, robi backup poprzednich do
+    `team/.team-init-backups/<timestamp>/`. **NIE rusza** CLAUDE.md, ROSTER, TASKS,
+    agents/, plików kierunkowych. Bezpieczne — user-owned content zachowany.
+    Wywołanie: `bash $SCRIPT --target-dir <PWD> --upgrade-templates`
+  - `Nadpisać całość` (czysty restart — destruktywne, traci wszystko)
   - `Pozostawić bez zmian` (przerwij setup)
   - `Pokaż mi obecny stan struktury` (przeczytaj i opisz, nie modyfikuj)
+
+**Brak pliku `.team-init-config`** = projekt zainicjowany ręcznie lub starszą wersją
+(przed 2026-05-26). Wtedy upgrade nie zadziała — zostają opcje "Nadpisać" lub
+"Pozostawić". Możesz też zaproponować: "Ręczne ustawienie configu" — zapytaj
+o `project-type` itd., zapisz do `.team-init-config`, następnie upgrade.
 
 ---
 

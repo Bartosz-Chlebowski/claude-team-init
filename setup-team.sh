@@ -45,6 +45,10 @@ LANGUAGE="polski"
 FORCE="no"
 DRY_RUN="no"
 NON_INTERACTIVE="no"
+UPGRADE_TEMPLATES="no"   # gdy yes, re-renderuje TYLKO statyczne playbooki z zachowaniem user data
+
+# Wersja szablonów — bumpowana ręcznie przy istotnych zmianach w templates/
+TEMPLATES_VERSION="2026-05-26"
 
 # ============================================================================
 # POMOC
@@ -90,6 +94,11 @@ POZOSTAŁE:
   --force                         nadpisz istniejące pliki bez pytania
   --dry-run                       pokaż co zrobi, nie zapisuj
   --non-interactive               brakujące wymagane flagi → error (nie pytaj)
+  --upgrade-templates             tryb aktualizacji: czyta team/.team-init-config,
+                                  robi backup, re-renderuje TYLKO statyczne playbooki
+                                  (PROJECT_MANAGER, HIRING, WORKFLOW, STANDARDS,
+                                  REPORTING, README, AGENT_TEMPLATE). Nie rusza:
+                                  CLAUDE.md, ROSTER, TASKS, agents/, plików kierunkowych.
 
 PRZYKŁADY:
   # Projekt software
@@ -135,6 +144,7 @@ while [[ $# -gt 0 ]]; do
     --force) FORCE="yes"; shift ;;
     --dry-run) DRY_RUN="yes"; shift ;;
     --non-interactive) NON_INTERACTIVE="yes"; shift ;;
+    --upgrade-templates) UPGRADE_TEMPLATES="yes"; shift ;;
     -h|--help) print_help; exit 0 ;;
     *) echo "ERR: nieznana flaga: $1" >&2; print_help; exit 2 ;;
   esac
@@ -211,6 +221,29 @@ ask_yes_no() {
     *) echo "  ↳ podaj y/n"; ask_yes_no "$prompt" "$default" "$varname" ;;
   esac
 }
+
+# ============================================================================
+# TRYB UPGRADE — wczytaj zapisany config zamiast pytać użytkownika
+# ============================================================================
+
+if [[ "$UPGRADE_TEMPLATES" == "yes" ]]; then
+  CONFIG_FILE="${TARGET_DIR}/team/.team-init-config"
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "ERR: --upgrade-templates wymaga istniejącego pliku $CONFIG_FILE" >&2
+    echo "     (Plik jest tworzony automatycznie przy initial setup. Brak go = projekt nie był" >&2
+    echo "     zainicjowany przez setup-team.sh albo był wersją starszą niż 2026-05-26.)" >&2
+    exit 2
+  fi
+  # source w subshellu byłby bezpieczniejszy, ale potrzebujemy zmiennych w głównym
+  # shellu, więc używamy . — config musi być prostym bash-key=value
+  # shellcheck disable=SC1090
+  . "$CONFIG_FILE"
+  # Domyślnie tryb upgrade = non-interactive
+  NON_INTERACTIVE="yes"
+  echo "📋 Tryb upgrade: wczytany config (wersja szablonów: ${TEMPLATES_VERSION_INSTALLED:-nieznana})"
+  echo "   PROJECT_TYPE=$PROJECT_TYPE | --owner=$OWNER_NAME | --name=$PROJECT_NAME"
+  echo ""
+fi
 
 # Sprawdzamy czy potrzeba kwestionariusza
 need_questionnaire="no"
@@ -363,10 +396,10 @@ if [[ -z "$TARGET_DIR" || ! -d "$TARGET_DIR" ]]; then
   exit 2
 fi
 
-# Sprawdź czy team/ już istnieje
-if [[ -d "${TARGET_DIR}/team" && "$FORCE" != "yes" ]]; then
+# Sprawdź czy team/ już istnieje (w trybie upgrade jest to OCZEKIWANE — pomijamy check)
+if [[ -d "${TARGET_DIR}/team" && "$FORCE" != "yes" && "$UPGRADE_TEMPLATES" != "yes" ]]; then
   if [[ "$NON_INTERACTIVE" == "yes" ]]; then
-    echo "ERR: ${TARGET_DIR}/team już istnieje. Użyj --force aby nadpisać." >&2
+    echo "ERR: ${TARGET_DIR}/team już istnieje. Użyj --force aby nadpisać lub --upgrade-templates aby zaktualizować." >&2
     exit 2
   fi
   echo ""
@@ -498,57 +531,135 @@ render_template() {
 
 echo ""
 echo "════════════════════════════════════════════════════════════════════"
-echo "  Generuję strukturę: $PROJECT_NAME"
+if [[ "$UPGRADE_TEMPLATES" == "yes" ]]; then
+  echo "  🔄 Upgrade playbooków: $PROJECT_NAME"
+else
+  echo "  Generuję strukturę: $PROJECT_NAME"
+fi
 echo "  Katalog docelowy:    $TARGET_DIR"
 [[ "$DRY_RUN" == "yes" ]] && echo "  TRYB:                dry-run (nic nie zapisuję)"
 echo "════════════════════════════════════════════════════════════════════"
 echo ""
 
-# 1. CLAUDE.md (główny katalog)
-if [[ -f "${TARGET_DIR}/CLAUDE.md" && "$FORCE" != "yes" ]]; then
-  echo "  ⏭  CLAUDE.md już istnieje — pomijam (użyj --force aby nadpisać)"
+# Lista plików aktualizowanych w trybie upgrade (statyczne playbooki)
+UPGRADEABLE_FILES=(
+  "team/README.md"
+  "team/PROJECT_MANAGER.md"
+  "team/HIRING.md"
+  "team/WORKFLOW.md"
+  "team/STANDARDS.md"
+  "team/REPORTING.md"
+  "team/templates/AGENT_TEMPLATE.md"
+)
+
+if [[ "$UPGRADE_TEMPLATES" == "yes" ]]; then
+  # ── TRYB UPGRADE ──────────────────────────────────────────────────────
+  # Backup wszystkich plików które będziemy nadpisywać
+  if [[ "$DRY_RUN" != "yes" ]]; then
+    BACKUP_DIR="${TARGET_DIR}/team/.team-init-backups/$(date +%Y-%m-%d-%H%M%S)"
+    mkdir -p "$BACKUP_DIR"
+    echo "📦 Backup do: ${BACKUP_DIR#$TARGET_DIR/}"
+    for rel in "${UPGRADEABLE_FILES[@]}"; do
+      if [[ -f "${TARGET_DIR}/${rel}" ]]; then
+        mkdir -p "$(dirname "$BACKUP_DIR/$rel")"
+        cp "${TARGET_DIR}/${rel}" "$BACKUP_DIR/$rel"
+      fi
+    done
+    echo ""
+  fi
+
+  echo "── Re-rendering playbooków ────────────────────────────────────────"
+  render_template "${TEMPLATES_DIR}/team/README.md.tpl" "${TARGET_DIR}/team/README.md"
+  render_template "${TEMPLATES_DIR}/team/PROJECT_MANAGER.md.tpl" "${TARGET_DIR}/team/PROJECT_MANAGER.md"
+  render_template "${TEMPLATES_DIR}/team/HIRING.md.tpl" "${TARGET_DIR}/team/HIRING.md"
+  render_template "${TEMPLATES_DIR}/team/WORKFLOW.md.tpl" "${TARGET_DIR}/team/WORKFLOW.md"
+  render_template "${TEMPLATES_DIR}/team/STANDARDS.md.tpl" "${TARGET_DIR}/team/STANDARDS.md"
+  render_template "${TEMPLATES_DIR}/team/REPORTING.md.tpl" "${TARGET_DIR}/team/REPORTING.md"
+  render_template "${TEMPLATES_DIR}/team/templates/AGENT_TEMPLATE.md.tpl" "${TARGET_DIR}/team/templates/AGENT_TEMPLATE.md"
+
+  echo ""
+  echo "── Pomijam (user-owned, niezmieniane przy upgrade) ────────────────"
+  echo "  ⏭  CLAUDE.md           (user mógł edytować)"
+  echo "  ⏭  team/ROSTER.md      (zarządza PM)"
+  echo "  ⏭  team/TASKS.md       (zarządza PM)"
+  echo "  ⏭  team/agents/*       (user data)"
+  echo "  ⏭  pliki kierunkowe    (treść projektu)"
 else
-  render_template "${TEMPLATES_DIR}/CLAUDE.md.tpl" "${TARGET_DIR}/CLAUDE.md"
+  # ── TRYB INITIAL SETUP ─────────────────────────────────────────────────
+  # 1. CLAUDE.md (główny katalog)
+  if [[ -f "${TARGET_DIR}/CLAUDE.md" && "$FORCE" != "yes" ]]; then
+    echo "  ⏭  CLAUDE.md już istnieje — pomijam (użyj --force aby nadpisać)"
+  else
+    render_template "${TEMPLATES_DIR}/CLAUDE.md.tpl" "${TARGET_DIR}/CLAUDE.md"
+  fi
+
+  # 2. team/* (wszystkie pliki w team/)
+  render_template "${TEMPLATES_DIR}/team/README.md.tpl" "${TARGET_DIR}/team/README.md"
+  render_template "${TEMPLATES_DIR}/team/PROJECT_MANAGER.md.tpl" "${TARGET_DIR}/team/PROJECT_MANAGER.md"
+  render_template "${TEMPLATES_DIR}/team/HIRING.md.tpl" "${TARGET_DIR}/team/HIRING.md"
+  render_template "${TEMPLATES_DIR}/team/WORKFLOW.md.tpl" "${TARGET_DIR}/team/WORKFLOW.md"
+  render_template "${TEMPLATES_DIR}/team/STANDARDS.md.tpl" "${TARGET_DIR}/team/STANDARDS.md"
+  render_template "${TEMPLATES_DIR}/team/REPORTING.md.tpl" "${TARGET_DIR}/team/REPORTING.md"
+  render_template "${TEMPLATES_DIR}/team/ROSTER.md.tpl" "${TARGET_DIR}/team/ROSTER.md"
+  render_template "${TEMPLATES_DIR}/team/TASKS.md.tpl" "${TARGET_DIR}/team/TASKS.md"
+  render_template "${TEMPLATES_DIR}/team/templates/AGENT_TEMPLATE.md.tpl" "${TARGET_DIR}/team/templates/AGENT_TEMPLATE.md"
+
+  # 3. team/agents/ (pusty folder + .gitkeep)
+  if [[ "$DRY_RUN" != "yes" ]]; then
+    mkdir -p "${TARGET_DIR}/team/agents"
+    touch "${TARGET_DIR}/team/agents/.gitkeep"
+    echo "  ✓ ${TARGET_DIR}/team/agents/ (pusty folder)"
+  else
+    echo "  [DRY-RUN] utworzyłbym pusty folder: ${TARGET_DIR}/team/agents/"
+  fi
+
+  # 4. Pliki kierunkowe (opcjonalne)
+  echo ""
+  echo "── Pliki kierunkowe ───────────────────────────────────────────────"
+  IFS=',' read -ra DOC_ARR <<< "$DOC_FILES"
+  for f in "${DOC_ARR[@]}"; do
+    f="$(echo "$f" | xargs)"
+    [[ -z "$f" ]] && continue
+    local_tpl="${TEMPLATES_DIR}/docs/${f}.md.tpl"
+    if [[ ! -f "$local_tpl" ]]; then
+      echo "  ⚠️  brak szablonu dla ${f}.md w ${TEMPLATES_DIR}/docs/ — pomijam"
+      continue
+    fi
+    if [[ -f "${TARGET_DIR}/${f}.md" && "$FORCE" != "yes" ]]; then
+      echo "  ⏭  ${f}.md już istnieje — pomijam"
+      continue
+    fi
+    render_template "$local_tpl" "${TARGET_DIR}/${f}.md"
+  done
 fi
 
-# 2. team/* (wszystkie pliki w team/)
-render_template "${TEMPLATES_DIR}/team/README.md.tpl" "${TARGET_DIR}/team/README.md"
-render_template "${TEMPLATES_DIR}/team/PROJECT_MANAGER.md.tpl" "${TARGET_DIR}/team/PROJECT_MANAGER.md"
-render_template "${TEMPLATES_DIR}/team/HIRING.md.tpl" "${TARGET_DIR}/team/HIRING.md"
-render_template "${TEMPLATES_DIR}/team/WORKFLOW.md.tpl" "${TARGET_DIR}/team/WORKFLOW.md"
-render_template "${TEMPLATES_DIR}/team/STANDARDS.md.tpl" "${TARGET_DIR}/team/STANDARDS.md"
-render_template "${TEMPLATES_DIR}/team/REPORTING.md.tpl" "${TARGET_DIR}/team/REPORTING.md"
-render_template "${TEMPLATES_DIR}/team/ROSTER.md.tpl" "${TARGET_DIR}/team/ROSTER.md"
-render_template "${TEMPLATES_DIR}/team/TASKS.md.tpl" "${TARGET_DIR}/team/TASKS.md"
-render_template "${TEMPLATES_DIR}/team/templates/AGENT_TEMPLATE.md.tpl" "${TARGET_DIR}/team/templates/AGENT_TEMPLATE.md"
-
-# 3. team/agents/ (pusty folder + .gitkeep)
+# 5. Zapis configu (zarówno przy initial setup jak i przy upgrade)
 if [[ "$DRY_RUN" != "yes" ]]; then
-  mkdir -p "${TARGET_DIR}/team/agents"
-  touch "${TARGET_DIR}/team/agents/.gitkeep"
-  echo "  ✓ ${TARGET_DIR}/team/agents/ (pusty folder)"
-else
-  echo "  [DRY-RUN] utworzyłbym pusty folder: ${TARGET_DIR}/team/agents/"
+  CONFIG_FILE="${TARGET_DIR}/team/.team-init-config"
+  cat > "$CONFIG_FILE" <<EOF
+# Wygenerowane przez setup-team.sh — nie edytuj ręcznie.
+# Używane przy 'bash setup-team.sh --upgrade-templates'.
+PROJECT_NAME='${PROJECT_NAME//\'/\'\\\'\'}'
+OWNER_NAME='${OWNER_NAME//\'/\'\\\'\'}'
+PROJECT_DESCRIPTION='${PROJECT_DESCRIPTION//\'/\'\\\'\'}'
+PROJECT_TYPE='${PROJECT_TYPE}'
+INDUSTRY='${INDUSTRY//\'/\'\\\'\'}'
+PRODUCT_TYPE='${PRODUCT_TYPE//\'/\'\\\'\'}'
+STACK_FRONTEND='${STACK_FRONTEND//\'/\'\\\'\'}'
+STACK_BACKEND='${STACK_BACKEND//\'/\'\\\'\'}'
+STACK_DATABASE='${STACK_DATABASE//\'/\'\\\'\'}'
+STACK_AUTH='${STACK_AUTH//\'/\'\\\'\'}'
+STACK_OTHER='${STACK_OTHER//\'/\'\\\'\'}'
+MULTITENANT='${MULTITENANT}'
+RODO='${RODO}'
+DATA_LOCATION='${DATA_LOCATION//\'/\'\\\'\'}'
+DOC_FILES='${DOC_FILES}'
+TEMPLATES_VERSION_INSTALLED='${TEMPLATES_VERSION}'
+LAST_UPDATE='$(date +%Y-%m-%d\ %H:%M:%S)'
+EOF
+  echo ""
+  echo "  ✓ ${CONFIG_FILE#$TARGET_DIR/} (zapisany — używaj --upgrade-templates do aktualizacji)"
 fi
-
-# 4. Pliki kierunkowe (opcjonalne)
-echo ""
-echo "── Pliki kierunkowe ───────────────────────────────────────────────"
-IFS=',' read -ra DOC_ARR <<< "$DOC_FILES"
-for f in "${DOC_ARR[@]}"; do
-  f="$(echo "$f" | xargs)"
-  [[ -z "$f" ]] && continue
-  local_tpl="${TEMPLATES_DIR}/docs/${f}.md.tpl"
-  if [[ ! -f "$local_tpl" ]]; then
-    echo "  ⚠️  brak szablonu dla ${f}.md w ${TEMPLATES_DIR}/docs/ — pomijam"
-    continue
-  fi
-  if [[ -f "${TARGET_DIR}/${f}.md" && "$FORCE" != "yes" ]]; then
-    echo "  ⏭  ${f}.md już istnieje — pomijam"
-    continue
-  fi
-  render_template "$local_tpl" "${TARGET_DIR}/${f}.md"
-done
 
 # ============================================================================
 # PODSUMOWANIE
@@ -559,30 +670,41 @@ echo "════════════════════════�
 echo "  ✅ GOTOWE"
 echo "════════════════════════════════════════════════════════════════════"
 echo ""
-echo "Struktura utworzona w: $TARGET_DIR"
-echo ""
-echo "Co dalej:"
-echo "  1. Przejrzyj CLAUDE.md i pliki w team/ — wypełnij placeholdery <...>"
-echo "  2. Odpal Claude Code w katalogu projektu i odwołaj się do PM:"
-echo "     @team/PROJECT_MANAGER.md — działaj jako Project Manager. Zadanie: ..."
-case "$PROJECT_TYPE" in
-  software)
-    echo "  3. Pierwsze zadanie zwykle: ustal MVP scope, ARCHITECTURE, FEATURES"
-    ;;
-  content)
-    echo "  3. Pierwsze zadanie zwykle: ustal strategię contentową, persony, kalendarz publikacji"
-    ;;
-  research)
-    echo "  3. Pierwsze zadanie zwykle: ustal cele badania, hipotezy, metodologię"
-    ;;
-  marketing)
-    echo "  3. Pierwsze zadanie zwykle: ustal cele kampanii, target, kanały, KPI"
-    ;;
-  operations)
-    echo "  3. Pierwsze zadanie zwykle: zmapuj obecny proces, zidentyfikuj wąskie gardła"
-    ;;
-  *)
-    echo "  3. Pierwsze zadanie zwykle: doprecyzuj cele projektu i pierwsze kroki"
-    ;;
-esac
+
+if [[ "$UPGRADE_TEMPLATES" == "yes" ]]; then
+  echo "Upgrade ukończony w: $TARGET_DIR"
+  echo ""
+  echo "Co dalej:"
+  echo "  1. Przejrzyj zmiany: git diff (jeśli używasz gita)"
+  echo "  2. Pliki user-owned (CLAUDE.md, ROSTER, TASKS, agents/) nieruszone."
+  echo "  3. Backup poprzedniej wersji: ${BACKUP_DIR#$TARGET_DIR/}"
+  echo "  4. Jeśli coś idzie nie tak — przywróć z backup-u: cp -r $BACKUP_DIR/team/ $TARGET_DIR/"
+else
+  echo "Struktura utworzona w: $TARGET_DIR"
+  echo ""
+  echo "Co dalej:"
+  echo "  1. Przejrzyj CLAUDE.md i pliki w team/ — wypełnij placeholdery <...>"
+  echo "  2. Odpal Claude Code w katalogu projektu i odwołaj się do PM:"
+  echo "     @team/PROJECT_MANAGER.md — działaj jako Project Manager. Zadanie: ..."
+  case "$PROJECT_TYPE" in
+    software)
+      echo "  3. Pierwsze zadanie zwykle: ustal MVP scope, ARCHITECTURE, FEATURES"
+      ;;
+    content)
+      echo "  3. Pierwsze zadanie zwykle: ustal strategię contentową, persony, kalendarz publikacji"
+      ;;
+    research)
+      echo "  3. Pierwsze zadanie zwykle: ustal cele badania, hipotezy, metodologię"
+      ;;
+    marketing)
+      echo "  3. Pierwsze zadanie zwykle: ustal cele kampanii, target, kanały, KPI"
+      ;;
+    operations)
+      echo "  3. Pierwsze zadanie zwykle: zmapuj obecny proces, zidentyfikuj wąskie gardła"
+      ;;
+    *)
+      echo "  3. Pierwsze zadanie zwykle: doprecyzuj cele projektu i pierwsze kroki"
+      ;;
+  esac
+fi
 echo ""
