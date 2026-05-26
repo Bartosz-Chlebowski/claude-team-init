@@ -31,13 +31,22 @@ użytkownikowi minimalną liczbę pytań i podać sensowne defaulty.
 ls -la
 ```
 
-Następnie **odczytaj zawartość** każdego z poniższych plików, **jeśli istnieje**:
+Następnie **odczytaj zawartość** każdego z poniższych plików, **jeśli istnieje**.
+
+**Uniwersalne (dla wszystkich typów):**
 
 | Plik / folder | Co z niego wyciągniesz |
 |---|---|
 | `team/` | Czy struktura jest już zainicjowana? Jeśli tak — przeczytaj `team/ROSTER.md` i `team/TASKS.md` żeby zrozumieć stan |
 | `CLAUDE.md` | Bazowe instrukcje projektu — nazwa, opis, stack, założenia, owner |
-| `README.md` | Opis projektu, cele, technologie, kontekst biznesowy |
+| `README.md` | Opis projektu, cele, kontekst biznesowy |
+| Inne `*.md` w root | Wcześniejsze ustalenia, plany, raporty, decyzje |
+| `.git/` | `git log --oneline -20` (o czym jest projekt), `git remote -v` (host) |
+
+**Sygnały dla `software`:**
+
+| Plik / folder | Co z niego wyciągniesz |
+|---|---|
 | `package.json` | Node/JS — nazwa, dependencies → frontend/backend stack |
 | `pyproject.toml` / `requirements.txt` | Python — stack |
 | `Cargo.toml` | Rust |
@@ -45,20 +54,70 @@ Następnie **odczytaj zawartość** każdego z poniższych plików, **jeśli ist
 | `Gemfile` | Ruby |
 | `composer.json` | PHP |
 | `pom.xml` / `build.gradle` | Java/Kotlin |
-| `prisma/schema.prisma` | ORM Prisma → PostgreSQL/MySQL/SQLite, schemat |
-| `migrations/` lub `db/migrate/` | Istnieje baza, jest migracjami zarządzana |
+| `prisma/schema.prisma` | ORM Prisma → PostgreSQL/MySQL/SQLite, schemat. Szukaj `Tenant`, `tenantId` → silny sygnał multi-tenant |
+| `migrations/` lub `db/migrate/` | Istnieje baza zarządzana migracjami |
 | `next.config.*` / `nuxt.config.*` / `vite.config.*` | Frontend framework |
-| `.env.example` lub `.env.template` | Sugestia o sekretach, integracjach |
+| `.env.example` / `.env.template` | Sugestia o sekretach, integracjach |
 | `docker-compose.yml` / `Dockerfile` | Serwisy, baza, infrastruktura |
 | `.github/workflows/` | CI/CD, automatyzacja |
-| Inne `*.md` w root (np. `ARCHITECTURE.md`, `FEATURES.md`, `DECISIONS.md`, `RESEARCH_*.md`) | Wcześniejsze ustalenia, plany, raporty |
 
-**Sprawdź repo git** (jeśli `.git/` istnieje):
+**Sygnały dla `content`:**
 
-```bash
-git log --oneline -20    # ostatnie commity → o czym jest projekt
-git remote -v            # gdzie host (sugestia: github → nazwa repo/org)
-```
+| Plik / folder | Co z niego wyciągniesz |
+|---|---|
+| `content/`, `posts/`, `articles/`, `blog/`, `_posts/`, `_drafts/` | Istniejące treści → struktura kanału, częstotliwość |
+| `*.mdx`, `*.md` z front-matterem (date, author, tags) | Format treści, autorzy, taksonomia |
+| `brand/`, `BRAND_*.md`, `tone_of_voice.md` | Brand guidelines → tone, voice, kolory |
+| `personas/`, `PERSONAS.md` | Persony / target audience |
+| `editorial_calendar.*`, `kalendarz.*`, `schedule.*` | Plan publikacji |
+| `seo/`, `keywords.*`, `Ahrefs.*`, `Senuto.*` | SEO research, słowa kluczowe |
+| Kanały: `linkedin/`, `medium/`, `substack/`, `wordpress/` | Gdzie publikuje |
+
+**Sygnały dla `research`:**
+
+| Plik / folder | Co z niego wyciągniesz |
+|---|---|
+| `hypotheses*.md`, `hipotezy*.md` | Hipotezy badawcze już sformułowane |
+| `methodology*.md`, `metodologia*.md` | Metoda badawcza ustalona |
+| `survey*`, `ankieta*`, `kwestionariusz*`, `interview*`, `wywiad*` | Narzędzia badawcze |
+| `data/`, `dane/`, `respondenci/`, `raw_data/` | Zebrane dane surowe |
+| `*.csv`, `*.xlsx`, `*.sav` z danymi | Datasety |
+| `findings*.md`, `wnioski*.md`, `raport*.md` | Wcześniejsze wnioski |
+| `literature/`, `literatura/`, `references.*` | Review literatury |
+
+**Sygnały dla `marketing`:**
+
+| Plik / folder | Co z niego wyciągniesz |
+|---|---|
+| `campaigns/`, `kampanie/`, `CAMPAIGN_*.md` | Aktywne / historyczne kampanie |
+| `briefs/`, `briefy/` | Briefy kreatywne / mediowe |
+| `assets/`, `kreacje/`, `creatives/`, `mood_board/` | Asset library |
+| `KPI*.md`, `metrics*`, `analytics/` | Wskaźniki, dashboardy |
+| `personas/`, `ICP.md`, `target.*` | Ideal Customer Profile |
+| `funnel.*`, `journey.*`, `lejki*` | Customer journey, lejek |
+| `channels.*`, `kanały*`, `paid/`, `organic/` | Kanały dystrybucji |
+| `budget*`, `budżet*` | Budżet kampanii |
+
+**Sygnały dla `operations`:**
+
+| Plik / folder | Co z niego wyciągniesz |
+|---|---|
+| `processes/`, `procesy/`, `playbooks/` | Udokumentowane procesy |
+| `SOP-*.md`, `sop/`, `procedures/` | Standard Operating Procedures |
+| `stakeholders.*`, `interesariusze.*`, `RACI*.md` | Kto za co odpowiada |
+| `SLA.*`, `sla/` | Service-level agreements |
+| `incidents/`, `incydenty/`, `postmortem/` | Log błędów / retrospekcji |
+| `onboarding/`, `wdrozenie/` | Procesy wdrożeniowe |
+| `tools.*`, `narzedzia.*` | Stack narzędziowy (CRM, ticketing, comms) |
+
+**Heurystyka klasyfikacji `--project-type`** (oparta o to co znajdziesz):
+
+- znalazłeś `package.json` / `Cargo.toml` / `pyproject.toml` / `go.mod` / framework config → **software**
+- znalazłeś `content/` / `posts/` / `_drafts/` / brand guidelines → **content**
+- znalazłeś hipotezy / metodologię / ankiety / dane CSV → **research**
+- znalazłeś `campaigns/` / `briefs/` / `KPI*` / asset library → **marketing**
+- znalazłeś `processes/` / SOP / RACI / SLA → **operations**
+- nic z powyższych nie pasuje → zapytaj użytkownika
 
 **Wyciągnij imię właściciela z pamięci Claude'a:**
 

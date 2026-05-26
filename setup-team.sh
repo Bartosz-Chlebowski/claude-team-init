@@ -257,13 +257,26 @@ case "$PROJECT_TYPE" in
     ;;
 esac
 
-# IS_TECHNICAL = yes tylko dla "software"; IS_NONTECHNICAL to jego negacja
+# Conditional vars per typ — używane do warunkowych bloków <!-- IF_IS_X --> w szablonach
 IS_TECHNICAL="no"
-IS_NONTECHNICAL="yes"
-if [[ "$PROJECT_TYPE" == "software" ]]; then
-  IS_TECHNICAL="yes"
-  IS_NONTECHNICAL="no"
-fi
+IS_CONTENT="no"
+IS_RESEARCH="no"
+IS_MARKETING="no"
+IS_OPERATIONS="no"
+IS_OTHER="no"
+IS_NONTECHNICAL="yes"     # negacja IS_TECHNICAL (dla istniejących blocków)
+
+case "$PROJECT_TYPE" in
+  software)
+    IS_TECHNICAL="yes"
+    IS_NONTECHNICAL="no"
+    ;;
+  content)    IS_CONTENT="yes" ;;
+  research)   IS_RESEARCH="yes" ;;
+  marketing)  IS_MARKETING="yes" ;;
+  operations) IS_OPERATIONS="yes" ;;
+  other)      IS_OTHER="yes" ;;
+esac
 
 # Default DOC_FILES zależy od typu projektu
 if [[ -z "$DOC_FILES" ]]; then
@@ -439,7 +452,7 @@ render_template() {
 
   # 1. Bloki warunkowe <!-- IF_X -->...<!-- /IF_X -->
   local var value
-  for var in IS_TECHNICAL IS_NONTECHNICAL MULTITENANT RODO HAS_DB STACK_OTHER; do
+  for var in IS_TECHNICAL IS_NONTECHNICAL IS_CONTENT IS_RESEARCH IS_MARKETING IS_OPERATIONS IS_OTHER MULTITENANT RODO HAS_DB STACK_OTHER; do
     value="${!var}"
     if [[ "$var" == "STACK_OTHER" ]]; then
       [[ -n "$STACK_OTHER" ]] && value="yes" || value="no"
