@@ -28,7 +28,8 @@ TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 PROJECT_NAME=""
 OWNER_NAME=""
 PROJECT_DESCRIPTION=""
-PROJECT_TYPE=""              # software|content|research|marketing|operations|other
+PROJECT_TYPE=""              # software|content|research|marketing|operations|other (główna domena — dla kosmetyki)
+DOMAINS=""                   # lista aktywnych domen przez przecinek (np. "software,operations"). Mogą być wszystkie.
 INDUSTRY="general"
 PRODUCT_TYPE=""              # konkretny podtyp w obrębie PROJECT_TYPE (np. "SaaS", "blog", "kampania")
 STACK_FRONTEND=""
@@ -48,7 +49,7 @@ NON_INTERACTIVE="no"
 UPGRADE_TEMPLATES="no"   # gdy yes, re-renderuje TYLKO statyczne playbooki z zachowaniem user data
 
 # Wersja szablonów — bumpowana ręcznie przy istotnych zmianach w templates/
-TEMPLATES_VERSION="2026-05-26"
+TEMPLATES_VERSION="2026-05-26.2"
 
 # ============================================================================
 # POMOC
@@ -67,9 +68,16 @@ WYMAGANE (w trybie nieinteraktywnym):
   --name "Nazwa projektu"         np. "Mój CRM" / "Blog Karoliny" / "Badanie rynku"
   --owner "Imię"                  decydent / właściciel projektu, np. "Anna"
   --description "1 zdanie"        krótki opis
-  --project-type "..."            software|content|research|marketing|operations|other
+  --project-type "..."            **główna** domena projektu (do kosmetyki/komunikatów):
+                                  software|content|research|marketing|operations|other
 
 OPCJONALNE:
+  --domains "X,Y,Z"               lista WSZYSTKICH aktywnych domen (mogą być wszystkie naraz).
+                                  Każda dodaje moduł do STANDARDS.md. Wartości:
+                                  software, content, research, marketing, operations.
+                                  Default: lista jednoelementowa z --project-type.
+                                  Przykład miksu: --domains "software,operations,marketing"
+                                  (np. SaaS który ma swój customer success + paid acquisition)
   --industry "branża"             default: general (np. ubezpieczenia, edukacja)
   --product-type "..."            podtyp w obrębie typu (np. "SaaS", "blog", "kampania");
                                   default zależy od --project-type
@@ -128,6 +136,7 @@ while [[ $# -gt 0 ]]; do
     --owner) OWNER_NAME="$2"; shift 2 ;;
     --description) PROJECT_DESCRIPTION="$2"; shift 2 ;;
     --project-type) PROJECT_TYPE="$2"; shift 2 ;;
+    --domains) DOMAINS="$2"; shift 2 ;;
     --industry) INDUSTRY="$2"; shift 2 ;;
     --product-type) PRODUCT_TYPE="$2"; shift 2 ;;
     --stack-frontend) STACK_FRONTEND="$2"; shift 2 ;;
@@ -290,14 +299,51 @@ case "$PROJECT_TYPE" in
     ;;
 esac
 
-# Conditional vars per typ — używane do warunkowych bloków <!-- IF_IS_X --> w szablonach
+# DOMAINS — jeśli nie podano, ustaw na pojedynczą domenę z --project-type (backward compat)
+if [[ -z "$DOMAINS" ]]; then
+  if [[ "$PROJECT_TYPE" == "other" ]]; then
+    DOMAINS=""    # other → brak modułów domenowych, tylko bazowy szkielet
+  else
+    DOMAINS="$PROJECT_TYPE"
+  fi
+fi
+
+# Conditional vars dla modułów STANDARDS — każdy niezależny, MOGĄ być wszystkie yes
+DOMAIN_SOFTWARE="no"
+DOMAIN_CONTENT="no"
+DOMAIN_RESEARCH="no"
+DOMAIN_MARKETING="no"
+DOMAIN_OPERATIONS="no"
+
+if [[ -n "$DOMAINS" ]]; then
+  IFS=',' read -ra _DOMAIN_LIST <<< "$DOMAINS"
+  for _d in "${_DOMAIN_LIST[@]}"; do
+    _d="$(echo "$_d" | xargs)"
+    case "$_d" in
+      software)   DOMAIN_SOFTWARE="yes" ;;
+      content)    DOMAIN_CONTENT="yes" ;;
+      research)   DOMAIN_RESEARCH="yes" ;;
+      marketing)  DOMAIN_MARKETING="yes" ;;
+      operations) DOMAIN_OPERATIONS="yes" ;;
+      "")         ;;
+      *)
+        echo "ERR: nieprawidłowa wartość w --domains: '$_d' (dozwolone: software|content|research|marketing|operations)" >&2
+        exit 2
+        ;;
+    esac
+  done
+fi
+
+# Legacy conditional vars — dla blocków IF_IS_X w pozostałych szablonach (CLAUDE.md,
+# ARCHITECTURE.md, WORKFLOW.md, HIRING.md, AGENT_TEMPLATE.md). Bazują na PROJECT_TYPE
+# (pojedyncza "główna" domena), nie na DOMAINS — żeby zachować spójność tych plików.
 IS_TECHNICAL="no"
 IS_CONTENT="no"
 IS_RESEARCH="no"
 IS_MARKETING="no"
 IS_OPERATIONS="no"
 IS_OTHER="no"
-IS_NONTECHNICAL="yes"     # negacja IS_TECHNICAL (dla istniejących blocków)
+IS_NONTECHNICAL="yes"
 
 case "$PROJECT_TYPE" in
   software)
@@ -485,7 +531,7 @@ render_template() {
 
   # 1. Bloki warunkowe <!-- IF_X -->...<!-- /IF_X -->
   local var value
-  for var in IS_TECHNICAL IS_NONTECHNICAL IS_CONTENT IS_RESEARCH IS_MARKETING IS_OPERATIONS IS_OTHER MULTITENANT RODO HAS_DB STACK_OTHER; do
+  for var in IS_TECHNICAL IS_NONTECHNICAL IS_CONTENT IS_RESEARCH IS_MARKETING IS_OPERATIONS IS_OTHER DOMAIN_SOFTWARE DOMAIN_CONTENT DOMAIN_RESEARCH DOMAIN_MARKETING DOMAIN_OPERATIONS MULTITENANT RODO HAS_DB STACK_OTHER; do
     value="${!var}"
     if [[ "$var" == "STACK_OTHER" ]]; then
       [[ -n "$STACK_OTHER" ]] && value="yes" || value="no"
@@ -643,6 +689,7 @@ PROJECT_NAME='${PROJECT_NAME//\'/\'\\\'\'}'
 OWNER_NAME='${OWNER_NAME//\'/\'\\\'\'}'
 PROJECT_DESCRIPTION='${PROJECT_DESCRIPTION//\'/\'\\\'\'}'
 PROJECT_TYPE='${PROJECT_TYPE}'
+DOMAINS='${DOMAINS}'
 INDUSTRY='${INDUSTRY//\'/\'\\\'\'}'
 PRODUCT_TYPE='${PRODUCT_TYPE//\'/\'\\\'\'}'
 STACK_FRONTEND='${STACK_FRONTEND//\'/\'\\\'\'}'

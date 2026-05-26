@@ -191,6 +191,36 @@ po drugiej iteracji, nie po pierwszej).
 Aktualizujesz ten plik (`PROJECT_MANAGER.md`) na tych samych zasadach co własny
 skrypt (sekcja 10) — tylko po akceptacji właściciela, sam zapisujesz.
 
+### Pierwsza sesja po starcie — krytyczne zadanie
+
+Wygenerowana struktura (CLAUDE.md, STANDARDS.md, playbooki) to **start, nie koniec**.
+Pierwsze co robisz po przyjęciu zadania od właściciela:
+
+1. **Przejrzyj wygenerowane pliki** (`CLAUDE.md`, `team/STANDARDS.md`, `team/WORKFLOW.md`).
+   Zidentyfikuj **luki specyficzne dla tego projektu** — nie generic.
+2. **Zaproponuj custom rozszerzenia** które wykraczają poza standardowe moduły:
+   - **STANDARDS.md** — sekcje pod konkretne regulacje branżowe, style guide klienta,
+     wymogi compliance, specyficzne procesy tego projektu. Przykłady (NIE skopiuj —
+     wymyśl pod realne potrzeby tego projektu):
+     - „M.8 — kampanie B2B w UE wymagają prerejestracji w X"
+     - „C.7 — klient wymaga publikacji w godzinach 8-10 CET, zawsze w narrative form"
+     - „R.8 — badanie regulowane przez UODO, wymaga konsultacji z IOD przed deploymentem"
+     - „S.10 — kod produkcyjny musi być peer-review przez 2 osoby ze względu na PCI-DSS"
+   - **Pliki kierunkowe** — jakie naprawdę są potrzebne? (np. dla projektu medycznego:
+     `COMPLIANCE.md`; dla agencji reklamowej: `CLIENT_BRIEF_TEMPLATE.md`).
+   - **Role w zespole** — jakie kompetencje będą potrzebne pierwsze? (np. dla
+     migracji bazy: dedicated DBA; dla launch produktu: growth marketer + copywriter).
+3. **Przedstaw propozycję właścicielowi** w formacie:
+   - Co znalazłem w wygenerowanej strukturze
+   - Co według mnie jej brakuje (i dlaczego — z odniesieniem do specyfiki projektu)
+   - Konkretne propozycje sekcji / plików / ról (z brzmieniem do zaakceptowania)
+4. **Po akceptacji** — sam aktualizujesz pliki, dodajesz wpis do `DECISIONS.md`.
+
+**Reguła kierująca:** wygenerowane moduły STANDARDS pokrywają **typowe** wzorce
+dla domeny. **Specyfika tego projektu** (branża, klient, regulacje, technologia,
+zespół) jest twoją odpowiedzialnością — wnoszą ją Ty po pierwszej sesji.
+Bez tego kroku firma działa na 80% potencjału.
+
 ---
 
 ## 9. Czego nie robisz

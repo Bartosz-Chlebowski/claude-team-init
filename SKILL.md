@@ -110,14 +110,43 @@ Następnie **odczytaj zawartość** każdego z poniższych plików, **jeśli ist
 | `onboarding/`, `wdrozenie/` | Procesy wdrożeniowe |
 | `tools.*`, `narzedzia.*` | Stack narzędziowy (CRM, ticketing, comms) |
 
-**Heurystyka klasyfikacji `--project-type`** (oparta o to co znajdziesz):
+**Klasyfikacja domen — projekt może mieć WIELE naraz**
 
-- znalazłeś `package.json` / `Cargo.toml` / `pyproject.toml` / `go.mod` / framework config → **software**
-- znalazłeś `content/` / `posts/` / `_drafts/` / brand guidelines → **content**
-- znalazłeś hipotezy / metodologię / ankiety / dane CSV → **research**
-- znalazłeś `campaigns/` / `briefs/` / `KPI*` / asset library → **marketing**
-- znalazłeś `processes/` / SOP / RACI / SLA → **operations**
-- nic z powyższych nie pasuje → zapytaj użytkownika
+Nie zmuszaj projektu do jednego boxa. Realne projekty to często miksy
+(np. SaaS z własnym customer success + paid ads = software+operations+marketing;
+blog autorski z kursem i community = content+operations).
+
+Sprawdź wszystkie domeny niezależnie:
+
+- znalazłeś `package.json` / `Cargo.toml` / `pyproject.toml` / `go.mod` / framework config
+  → **DOMAIN_SOFTWARE = yes**
+- znalazłeś `content/` / `posts/` / `_drafts/` / brand guidelines / blog content
+  → **DOMAIN_CONTENT = yes**
+- znalazłeś hipotezy / metodologię / ankiety / dane CSV
+  → **DOMAIN_RESEARCH = yes**
+- znalazłeś `campaigns/` / `briefs/` / `KPI*` / asset library / UTM tracking
+  → **DOMAIN_MARKETING = yes**
+- znalazłeś `processes/` / SOP / RACI / SLA / playbooks
+  → **DOMAIN_OPERATIONS = yes**
+
+Wszystkie aktywne domeny przekazujesz jako listę: `--domains "software,marketing,operations"`.
+STANDARDS.md dostanie moduł dla każdej z nich (każdy moduł niezależny).
+
+**Wybór `--project-type` (główna domena, dla kosmetyki):**
+
+`--project-type` zostaje pojedynczą wartością — używana do:
+- Wygenerowania sugestii "pierwsze zadanie zwykle: ..." na końcu setupu
+- Komunikatów (w CLAUDE.md, w "Typ projektu: ...")
+- Sterowania innymi blokami IF_IS_X w pozostałych szablonach (CLAUDE.md, ARCHITECTURE.md, HIRING.md)
+
+Wybierz **dominującą** domenę (gdy projekt jest np. głównie software z dodatkami marketing/ops
+→ project-type=software). Gdy projekt to balansowany miks → wybierz tę, która najczęściej
+będzie głównym przedmiotem zadań (zapytaj usera).
+
+**Gdy nic nie pasuje** (czysto pusty katalog / brak sygnałów):
+- `--project-type other`
+- `--domains ""` (pusta lista → STANDARDS dostaje tylko bazowy szkielet bez modułów)
+- W fazie 2 zapytaj usera o naturę projektu
 
 **Wyciągnij imię właściciela z pamięci Claude'a:**
 
@@ -202,14 +231,17 @@ Zapoznałem się z projektem. Oto co znalazłem:
 📝 Plików konfiguracyjnych: <lista>
 🏗️  Wykryty stack: <co rozpoznałem>
 📚 Istniejąca dokumentacja: <pliki MD, jeśli są>
-🎯 Wstępna klasyfikacja: <project-type>
+🎯 Wykryte domeny: <np. "software (z package.json+Prisma) + operations (z processes/)">
+   → główna: <która dominuje, dla --project-type>
+   → wszystkie do STANDARDS: <lista dla --domains>
 ⚠️  team/ status: <"nie ma" | "już istnieje — N agentów aktywnych" | "częściowo zainicjowane">
 
 Proponowane defaulty:
 - Właściciel: <wartość z memory lub "?">
 - Nazwa: <wartość>
-- Typ projektu: <wartość>
-- Stack: <wartość>
+- Główna domena (--project-type): <wartość>
+- Wszystkie aktywne domeny (--domains): <lista, mogą być 1-5>
+- Stack: <wartość, jeśli dotyczy>
 - Multi-tenant: <yes/no — z uzasadnieniem>
 - RODO: <yes/no — z uzasadnieniem>
 
